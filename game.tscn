@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=2]
+[gd_scene load_steps=11 format=2]
 
 [ext_resource path="res://icon.png" type="Texture" id=1]
 
@@ -95,7 +95,13 @@ var is_touched = false
 var should_save_track = false
 var mouse_on = false
 
+var norm_track
+var active_matrix
+
 func _ready():
+	norm_track = get_parent().get_node(\"normilized_track\")
+	active_matrix = get_parent().get_node(\"active_matrix\")
+	
 	set_process_input(true)
 	set_physics_process(true)
 	pass
@@ -112,13 +118,17 @@ func _physics_process(delta):
 			if track.size() < 100:
 				track.push_back(mouse_pos)
 	else:
+		if should_save_track:
+			norm_track.set_track(track)
+			active_matrix.add_track(track)
+			
 		should_save_track = false
 		
 	update()
 
 func _draw():
 	var movavg_track = moving_average(track, 3)
-	draw_track(movavg_track, Color(255, 255, 255), 2)
+	draw_track(track, Color(255, 255, 255), 2)
 			
 func draw_track(track, color, width):	
 	var prev_coord = null
@@ -152,6 +162,224 @@ func _on_draw_area_mouse_entered():
 func _on_draw_area_mouse_exited():
 	mouse_on = false
 "
+
+[sub_resource type="GDScript" id=9]
+
+script/source = "extends Node2D
+
+var matrix_size = Vector2(18, 18)
+var main_matrix = zeros_matrix(matrix_size.x, matrix_size.y)
+var cell_size = 5
+
+var normalized_track
+
+func _ready():
+	normalized_track = get_parent().get_node(\"normilized_track\")
+	pass
+
+func add_track(track):
+	track = normalized_track.crop_box(track)
+	main_matrix = fit_matrix(main_matrix, track)
+	
+	update()
+
+func _draw():
+	var mat_max = matrix_max_value(main_matrix)
+	if mat_max == 0:
+		mat_max = 1
+
+	for row in range(main_matrix.size()):
+		for column in range(main_matrix[row].size()):
+			draw_rect(
+				Rect2(
+					position.x + column * cell_size,
+					position.y + row * cell_size, 
+					cell_size,
+					cell_size
+				), 
+				Color(float(main_matrix[row][column]) / float(mat_max), 0, 0)
+			)
+
+func fit_matrix(matrix, track):
+	#track = normalized_track.crop_box(track)
+	var box = normalized_track.find_box(track)
+	var maxPoint = Vector2(
+		max(box[\"max\"].x, box[\"max\"].y), 
+		max(box[\"max\"].x, box[\"max\"].y)
+	)
+
+	var step_done_matrix = zeros_matrix(matrix_size.x, matrix_size.y)
+	var prev_coord = null
+	for coord in track:
+		if prev_coord == null:
+			prev_coord = coord
+			continue
+	
+		var step = 1
+		var from = prev_coord
+		var to = coord
+		var distance = from.distance_to(to)
+		var steps = floor(distance / step)
+		
+		var line_coord = prev_coord
+		for s in range(steps):
+			var i = ceil(line_coord.y / maxPoint.y * (matrix_size.y-1))
+			var j = ceil(line_coord.x / maxPoint.x * (matrix_size.x-1))
+			
+			line_coord = line_coord.linear_interpolate(to, s/steps)
+		
+			if step_done_matrix[i][j] == 0:
+				matrix[i][j] += 1
+				step_done_matrix[i][j] = 1
+			
+			prev_coord = coord
+			
+	return matrix
+	
+func zeros_matrix(w, h):
+	var matrix = []
+	for i in range(h):
+		matrix.push_back([])
+		for j in range(w):
+			matrix[i].push_back(0)
+	return matrix 
+	
+func norm_matrix(matrix):
+	var max_val = matrix_max_value(matrix)
+	var norm_m = zeros_matrix(matrix_size.x, matrix_size.y)
+	for row in range(matrix.size()):
+		for column in range(matrix[row].size()):
+			norm_m[row][column] = float(matrix[row][column])/float(max_val)
+
+	return norm_m	
+	
+func matrix_max_value(matrix):
+	if matrix.size() == 0:
+		return 0
+		
+	var maxVal = matrix[0][0]
+	for row in matrix:
+		for column in row:
+			if maxVal < column:
+				maxVal = column
+	return maxVal"
+
+[sub_resource type="GDScript" id=8]
+
+script/source = "tool
+extends Node2D
+
+var track = PoolVector2Array()
+var track_size = Vector2(88, 88)
+
+
+func _ready():
+	pass
+
+func set_track(t):
+	t = normalize_coordinates(t)
+	t = moving_average(t, 2)
+	track = t
+	
+	update()
+
+func _draw():
+	var box = find_box(track)
+	var maxCoord = Vector2(
+		max(box[\"max\"].x, box[\"max\"].y), 
+		max(box[\"max\"].x, box[\"max\"].y)
+	)
+	
+	var step = 0.5
+	var prev_coord = null
+	for coordinate in track:
+		if prev_coord != null:
+			var from = prev_coord * track_size
+			var to = coordinate * track_size
+			var distance = from.distance_to(to)
+			var steps = floor(distance / step)
+			var line_coord = prev_coord * track_size
+			draw_line(
+				self.position + prev_coord * track_size, 
+				self.position + coordinate * track_size, 
+				Color(255, 255, 255),2
+			)
+		prev_coord = coordinate
+	
+
+func normalize_coordinates(coords):
+	coords = crop_box(coords)
+	var box = find_box(coords)
+	var maxPoint = Vector2(
+		max(box[\"max\"].x, box[\"max\"].y), 
+		max(box[\"max\"].x, box[\"max\"].y)
+	)
+	
+	#coords = centered_coords(coords)
+	
+	if maxPoint.x == 0:
+		maxPoint.x = 1
+	if maxPoint.y == 0:
+		maxPoint.y = 1
+	
+	var normCoords = PoolVector2Array()
+	for coord in coords:
+		coord.x /= maxPoint.x
+		coord.y /= maxPoint.y
+		normCoords.push_back(coord)
+	
+	return normCoords
+
+func centered_coords(coords):
+	var box = find_box(coords)
+	var maxPoint = Vector2(
+		max(box[\"max\"].x, box[\"max\"].y), 
+		max(box[\"max\"].x, box[\"max\"].y)
+	)
+	
+	var centerCoords = PoolVector2Array()
+	for coord in coords:
+		coord.x -= box[\"max\"].x/2
+		coord.y -= box[\"max\"].y/2
+		centerCoords.push_back(coord)
+		
+	return centerCoords
+
+func crop_box(coords):
+	var box = find_box(coords)
+	var cropedCoords = PoolVector2Array()
+	var minPoint = Vector2(box[\"min\"].x, box[\"min\"].y)
+	
+	for coord in coords:
+		cropedCoords.push_back(coord - minPoint)
+	
+	return cropedCoords
+	
+	
+func find_box(coords):
+	var box = {
+		\"min\": Vector2(999999999, 999999999),
+		\"max\": Vector2(-999999999, -999999999),
+	}
+	
+	for coord in coords:
+		box[\"min\"].x = min(box[\"min\"].x, coord.x)
+		box[\"min\"].y = min(box[\"min\"].y, coord.y)
+		box[\"max\"].x = max(box[\"max\"].x, coord.x)
+		box[\"max\"].y = max(box[\"max\"].y, coord.y)
+		
+	return box
+
+func moving_average(coords, window):	
+	var movavg_coords = PoolVector2Array()
+	for i in range(coords.size()):
+		if i >= window:
+			var sum = Vector2()
+			for j in range(window):
+				sum += coords[i-j]
+			movavg_coords.push_back(sum/window)
+			
+	return movavg_coords"
 
 [node name="game" type="Node2D"]
 
@@ -277,7 +505,44 @@ mouse_filter = 0
 size_flags_horizontal = 1
 size_flags_vertical = 1
 script = SubResource( 7 )
-_sections_unfolded = [ "Anchor", "Margin" ]
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="active_matrix" type="Node2D" parent="input_tracker"]
+
+position = Vector2( 32, 8 )
+script = SubResource( 9 )
+_sections_unfolded = [ "Transform" ]
+
+[node name="normilized_track" type="Node2D" parent="input_tracker"]
+
+position = Vector2( 33, 9 )
+script = SubResource( 8 )
+_sections_unfolded = [ "Transform", "Visibility" ]
+
+[node name="camera" type="Camera2D" parent="."]
+
+offset = Vector2( 512, 300 )
+anchor_mode = 1
+rotating = false
+current = true
+zoom = Vector2( 1, 1 )
+limit_left = -10000000
+limit_top = -10000000
+limit_right = 10000000
+limit_bottom = 10000000
+limit_smoothed = false
+drag_margin_h_enabled = true
+drag_margin_v_enabled = true
+smoothing_enabled = false
+smoothing_speed = 5.0
+drag_margin_left = 0.2
+drag_margin_top = 0.2
+drag_margin_right = 0.2
+drag_margin_bottom = 0.2
+editor_draw_screen = true
+editor_draw_limits = false
+editor_draw_drag_margin = false
+_sections_unfolded = [ "Drag Margin", "Limit", "Smoothing", "Transform" ]
 
 [connection signal="mouse_entered" from="input_tracker/draw_area" to="input_tracker/draw_area" method="_on_draw_area_mouse_entered"]
 
