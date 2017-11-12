@@ -1,0 +1,117 @@
+[gd_scene load_steps=3 format=2]
+
+[sub_resource type="GDScript" id=1]
+
+script/source = "extends Node2D
+
+var events = []
+
+func _ready():
+	pass
+
+func add_event(event_matrix):
+	var matrix_instance = get_parent().get_parent().get_node(\"matrix\").duplicate()
+	matrix_instance.main_matrix = event_matrix
+	matrix_instance.cell_size = 1
+	matrix_instance.set_name(\"matrix_\"+\"\")
+	
+	matrix_instance.get_children()
+	
+	get_node(\"elements\").add_child(matrix_instance)
+	
+	events.append(matrix_instance)
+	update_positions()
+		
+func get_height():
+	var h = 0
+	for i in range(events.size()):
+		h += events[i].get_height() + i
+		
+	return h
+
+func update_positions():
+	for i in range(events.size()):
+		events[i].position  = Vector2(
+			-48, 
+			-get_height()/2 + events[i].get_height() * i + i
+		)
+	
+	update()	
+	
+func _draw():
+	for event in events:
+		draw_line(
+			event.position + Vector2(event.get_height()/2, event.get_height()/2), 
+			get_node(\"out\").position + Vector2(event.get_height()/2, event.get_height()/2),
+			Color(0, 0, 0)
+		)
+		"
+
+[sub_resource type="GDScript" id=2]
+
+script/source = "extends Node2D
+
+var mouse_on = false
+var out_size = Vector2(18, 18)
+
+var select_color = Color(1, 0.3, 0)
+var select_size = Vector2(2, 2)
+var is_move = false
+var select_pos = Vector2()
+var is_select = false
+
+func _ready():
+	set_physics_process(true)
+	set_process_input(true)
+	update()
+
+func _physics_process(delta):
+	var r = Rect2(
+		to_global(self.position),
+		out_size
+	)
+	
+	if r.has_point(get_global_mouse_position()):
+		mouse_on = true
+	else:
+		mouse_on = false
+		
+	if is_move && is_select:
+		var move_vector = get_global_mouse_position() - select_pos
+		select_pos = get_global_mouse_position()
+		get_parent().position += move_vector
+		update()
+	
+func _input(event):
+	if event is InputEventMouseButton:
+		if event.pressed:
+			is_move = mouse_on 
+			select_pos = get_global_mouse_position()
+			update()
+		else:
+			is_move = false 
+			update()
+			
+func _draw():
+	if is_select:
+		draw_rect(Rect2(-select_size, out_size + select_size * 2), select_color, true)
+		
+	var c = Color(1, 1, 1)
+	draw_rect(Rect2(Vector2(0, 0), out_size), c)
+
+	
+		
+		
+		"
+
+[node name="neuron" type="Node2D"]
+
+script = SubResource( 1 )
+
+[node name="out" type="Node2D" parent="."]
+
+script = SubResource( 2 )
+
+[node name="elements" type="Node2D" parent="."]
+
+
