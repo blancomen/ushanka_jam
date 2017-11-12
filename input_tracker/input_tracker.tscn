@@ -9,6 +9,7 @@ func _ready():
 	
 func _on_add_event_pressed():
 	var neurons = get_node(\"neurons\")
+
 	if neurons.selected_neuron != null:
 		neurons.selected_neuron.add_event(get_node(\"matrix\").main_matrix)
 		reset()
@@ -20,11 +21,14 @@ func reset():
 
 func _on_reset_matrix_pressed():
 	reset()
-
-
+	
 func _on_add_neuron_pressed():
 	get_node(\"neurons\").create_neuron()
-"
+
+func _on_reset_neuron_pressed():
+	var neurons = get_node(\"neurons\")
+	if neurons.selected_neuron != null:
+		neurons.selected_neuron.reset()"
 
 [sub_resource type="GDScript" id=2]
 
@@ -44,11 +48,13 @@ func _ready():
 	
 	set_process_input(true)
 	set_physics_process(true)
+	
+	print(OS.get_data_dir())
 	pass
 
 func _physics_process(delta):
 	var neurons = get_parent().get_node(\"neurons\")
-	var is_neuron_move = neurons.is_mouse_on && neurons.is_moved
+	var is_neuron_move = neurons.is_mouse_on || neurons.is_moved
 	
 	if is_touched:
 		if !should_save_track && mouse_on:
@@ -133,21 +139,25 @@ func get_height():
 	return matrix_size.y * cell_size
 
 func _draw():
+	print(\"Matrix draw\")
+	
 	var mat_max = matrix_max_value(main_matrix)
 	if mat_max == 0:
 		mat_max = 1
 
+	draw_rect(Rect2(Vector2(), matrix_size * Vector2(cell_size, cell_size)), Color(0, 0, 0))
 	for row in range(main_matrix.size()):
 		for column in range(main_matrix[row].size()):
-			draw_rect(
-				Rect2(
-					column * cell_size,
-					row * cell_size, 
-					cell_size,
-					cell_size
-				), 
-				Color(float(main_matrix[row][column]) / float(mat_max), 0, 0)
-			)
+			if main_matrix[row][column] > 0:
+				draw_rect(
+					Rect2(
+						column * cell_size,
+						row * cell_size, 
+						cell_size,
+						cell_size
+					), 
+					Color(float(main_matrix[row][column]) / float(mat_max), 0, 0)
+				)
 
 func fit_matrix(matrix, track):
 	var box = find_box(track)
@@ -397,15 +407,40 @@ func create_neuron():
 	var neuron_instance = neuron_class.instance()
 	neuron_instance.position = Vector2(32, 150)
 	add_child(neuron_instance)
-	neurons.append(neuron_instance)"
+	neurons.append(neuron_instance)
+	
+	return neuron_instance
+	
+func reset():
+	for neuron in neurons:
+		neuron.queue_free()
+	neurons = []
+	selected_neuron = null
+	
+	"
 
 [sub_resource type="GDScript" id=6]
 
 script/source = "extends Node2D
 
+var data_file = \"1.json\"
+
 func _ready():
 	pass
 	
+func load_neurons():
+	var neurons = get_parent().get_node(\"neurons\")
+	neurons.reset()
+	
+	var data = load_file(data_file)
+	var neurons_struct = parse_json(data)
+	for neuron in neurons_struct:
+		var neuron_instance = neurons.create_neuron()
+		neuron_instance.position.x = neuron.x
+		neuron_instance.position.y = neuron.y
+		for event in neuron.events:
+			neuron_instance.add_event(event)
+
 func save_neurons():
 	var neurons = get_parent().get_node(\"neurons\").neurons
 		
@@ -423,24 +458,26 @@ func save_neurons():
 		neurons_struct.append(neuron_struct)
 			
 	var json = to_json(neurons_struct)
-	save_file(\"1\", json)
+	save_file(data_file, json)
 		
 func save_file(filename, content):
     var file = File.new()
-    file.open(\"user://\" + filename + \".dat\", file.WRITE)
+    file.open(\"user://\" + filename, file.WRITE)
     file.store_string(content)
     file.close()
  
-func load_file(file):
-	pass
-    #var file = File.new()
-    #file.open(\"user://\" + file + \".dat\", file.READ)
-    #var content = file.get_as_text()
-    #file.close()
-    #return content
+func load_file(filename):
+    var file = File.new()
+    file.open(\"user://\" + filename, file.READ)
+    var content = file.get_as_text()
+    file.close()
+    return content
 
-func _on_save_actions_pressed():
+func _on_save_neurons_pressed():
 	save_neurons()
+
+func _on_load_neurons_pressed():
+	load_neurons()
 "
 
 [node name="game" type="Node2D"]
@@ -462,8 +499,9 @@ anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
 margin_left = -1.0
+margin_top = 1.0
 margin_right = 1023.0
-margin_bottom = 600.0
+margin_bottom = 601.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
 mouse_filter = 0
@@ -506,9 +544,9 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 12.0
-margin_right = 206.0
+margin_right = 205.0
 margin_bottom = 32.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -530,9 +568,9 @@ anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
 margin_left = 128.0
-margin_top = 35.0
+margin_top = 36.0
 margin_right = 214.0
-margin_bottom = 55.0
+margin_bottom = 56.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
 mouse_filter = 0
@@ -552,9 +590,9 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 60.0
-margin_right = 215.0
+margin_right = 219.0
 margin_bottom = 80.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -565,19 +603,19 @@ toggle_mode = false
 enabled_focus_mode = 2
 shortcut = null
 group = null
-text = "Reset"
+text = "Reset action"
 flat = false
 _sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
 
-[node name="save_actions" type="Button" parent="input_tracker/gui"]
+[node name="reset_neuron" type="Button" parent="input_tracker/gui"]
 
 anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 84.0
-margin_right = 215.0
+margin_right = 219.0
 margin_bottom = 104.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -588,7 +626,53 @@ toggle_mode = false
 enabled_focus_mode = 2
 shortcut = null
 group = null
-text = "Save actions"
+text = "Reset neuron"
+flat = false
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="save_neurons" type="Button" parent="input_tracker/gui"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 237.0
+margin_top = 12.0
+margin_right = 334.0
+margin_bottom = 32.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+text = "Save neurons"
+flat = false
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="load_neurons" type="Button" parent="input_tracker/gui"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 237.0
+margin_top = 36.0
+margin_right = 335.0
+margin_bottom = 56.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+text = "Load neurons"
 flat = false
 _sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
 
@@ -606,6 +690,10 @@ script = SubResource( 6 )
 
 [connection signal="pressed" from="input_tracker/gui/reset_matrix" to="input_tracker" method="_on_reset_matrix_pressed"]
 
-[connection signal="pressed" from="input_tracker/gui/save_actions" to="input_tracker/loader" method="_on_save_actions_pressed"]
+[connection signal="pressed" from="input_tracker/gui/reset_neuron" to="input_tracker" method="_on_reset_neuron_pressed"]
+
+[connection signal="pressed" from="input_tracker/gui/save_neurons" to="input_tracker/loader" method="_on_save_neurons_pressed"]
+
+[connection signal="pressed" from="input_tracker/gui/load_neurons" to="input_tracker/loader" method="_on_load_neurons_pressed"]
 
 

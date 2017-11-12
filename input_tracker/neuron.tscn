@@ -25,20 +25,27 @@ func add_event(event_matrix):
 func get_height():
 	var h = 0
 	for i in range(events.size()):
-		h += events[i].get_height() + i
+		h += events[i].get_height() + 1
 		
 	return h
 
 func update_positions():
 	for i in range(events.size()):
 		events[i].position  = Vector2(
-			-48, 
+			-64, 
 			-get_height()/2 + events[i].get_height() * i + i
 		)
 	
 	update()	
+
+func reset():
+	for event in events:
+		event.queue_free()
+	events = []
+	update()
 	
 func _draw():
+	print(\"Neuron draw\")
 	for event in events:
 		draw_line(
 			event.position + Vector2(event.get_height()/2, event.get_height()/2), 
@@ -87,10 +94,10 @@ func _input(event):
 		if event.pressed:
 			is_move = mouse_on 
 			select_pos = get_global_mouse_position()
-			update()
+			#update()
 		else:
 			is_move = false 
-			update()
+			#update()
 			
 func _draw():
 	if is_select:
