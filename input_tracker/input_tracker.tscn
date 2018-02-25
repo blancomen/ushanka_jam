@@ -1,92 +1,6 @@
-[gd_scene load_steps=14 format=2]
-
-[ext_resource path="res://icon.png" type="Texture" id=1]
+[gd_scene load_steps=7 format=2]
 
 [sub_resource type="GDScript" id=1]
-
-script/source = "extends Node2D
-
-var path
-var round_path
-export var speed = 80
-export var round_speed = 60
-
-func _ready():
-	#path = get_parent().get_node(\"Path2D/PathFollow2D\")
-	#round_path = get_node(\"round_path/PathFollow2D\")
-	
-	#set_physics_process(true)
-	pass
-
-func _physics_process(delta):
-	# Update path position
-	#path.set_offset(path.get_offset() + delta * speed)
-	#round_path.set_offset(round_path.get_offset() + delta * round_speed)
-	
-	#self.position = path.position
-	#get_node(\"round_path\").position = self.position
-	#get_node(\"minik\").position = round_path.position
-	#get_node(\"minik\").rotation += 0.1"
-_sections_unfolded = [ "Resource" ]
-
-[sub_resource type="Curve2D" id=2]
-
-bake_interval = 5.0
-_data = {
-"points": PoolVector2Array( 0, 0, 0, 0, 57.3607, 38.7337, 0, 0, 0, 0, 169.519, 124.559, 0, 0, 0, 0, 344.095, 242.569, 0, 0, 0, 0, 424.068, 294.259, 0, 0, 0, 0, 508.918, 338.147 )
-}
-
-[sub_resource type="Curve2D" id=3]
-
-bake_interval = 5.0
-_data = {
-"points": PoolVector2Array( 0, 0, 0, 0, 513.795, 341.073, 0, 0, 0, 0, 723.481, 222.088, 0, 0, 0, 0, 851.244, 119.682, 0, 0, 0, 0, 1004.36, 13.3763 )
-}
-
-[sub_resource type="Curve2D" id=4]
-
-bake_interval = 5.0
-_data = {
-"points": PoolVector2Array( 0, 0, 0, 0, 1014.12, 592.697, 0, 0, 0, 0, 859.046, 500.044, 0, 0, 0, 0, 715.679, 446.404, 0, 0, 0, 0, 547.93, 360.578, 0, 0, 0, 0, 511.844, 345.949 )
-}
-
-[sub_resource type="Curve2D" id=5]
-
-bake_interval = 5.0
-_data = {
-"points": PoolVector2Array( 0, 0, 0, 0, 508.918, 344.974, 0, 0, 0, 0, 301.182, 453.231, 0, 0, 0, 0, 110.026, 558.562, 0, 0, 0, 0, 2.74463, 597.573 )
-}
-
-[sub_resource type="GDScript" id=6]
-
-script/source = "extends Node2D
-
-
-var paths = []
-
-func _ready():
-	paths.append(get_parent().get_node(\"path_root/path_0\"))
-	paths.append(get_parent().get_node(\"path_root/path_1\"))
-	paths.append(get_parent().get_node(\"path_root/path_2\"))
-	paths.append(get_parent().get_node(\"path_root/path_3\"))
-	
-	set_physics_process(true)
-	set_process_input(true)
-	
-func _physics_process(delta):
-	pass
-	
-func _input(event):
-	if event.is_action_pressed(\"spawn_mob\"):
-		var path_number = range()
-	
-#func _process(delta):
-#	# Called every frame. Delta is time since last frame.
-#	# Update game logic here.
-#	pass
-"
-
-[sub_resource type="GDScript" id=11]
 
 script/source = "extends Node2D
 
@@ -94,8 +8,11 @@ func _ready():
 	pass
 	
 func _on_add_event_pressed():
-	get_node(\"neuron\").add_event(get_node(\"matrix\").main_matrix)
-	reset()
+	var neurons = get_node(\"neurons\")
+
+	if neurons.selected_neuron != null:
+		neurons.selected_neuron.add_event(get_node(\"matrix\").main_matrix)
+		reset()
 	
 func reset():
 	get_node(\"matrix\").reset()
@@ -104,20 +21,16 @@ func reset():
 
 func _on_reset_matrix_pressed():
 	reset()
-
-
-func _on_add_neuron_pressed():
 	
-	var neuron_instance = get_node(\"neuron\").duplicate()
-	var out_instance = get_node(\"neuron/out\").duplicate()
-	neuron_instance.position.x += 100
-	neuron_instance.add_child(out_instance)
-	neuron_instance.update()
-	add_child(neuron_instance)
-	print(neuron_instance.get_path())
-"
+func _on_add_neuron_pressed():
+	get_node(\"neurons\").create_neuron()
 
-[sub_resource type="GDScript" id=7]
+func _on_reset_neuron_pressed():
+	var neurons = get_node(\"neurons\")
+	if neurons.selected_neuron != null:
+		neurons.selected_neuron.reset()"
+
+[sub_resource type="GDScript" id=2]
 
 script/source = "extends Container
 
@@ -135,15 +48,20 @@ func _ready():
 	
 	set_process_input(true)
 	set_physics_process(true)
+	
+	print(OS.get_data_dir())
 	pass
 
 func _physics_process(delta):
+	var neurons = get_parent().get_node(\"neurons\")
+	var is_neuron_move = neurons.is_mouse_on || neurons.is_moved
+	
 	if is_touched:
 		if !should_save_track && mouse_on:
 			track = PoolVector2Array()
 			should_save_track = true
 			
-		if should_save_track:
+		if should_save_track && !is_neuron_move:
 			var mouse_pos = get_global_mouse_position()
 		
 			if track.size() < 100:
@@ -197,7 +115,7 @@ func _on_draw_area_mouse_exited():
 	mouse_on = false
 "
 
-[sub_resource type="GDScript" id=8]
+[sub_resource type="GDScript" id=3]
 
 script/source = "extends Node2D
 
@@ -221,21 +139,25 @@ func get_height():
 	return matrix_size.y * cell_size
 
 func _draw():
+	print(\"Matrix draw\")
+	
 	var mat_max = matrix_max_value(main_matrix)
 	if mat_max == 0:
 		mat_max = 1
 
+	draw_rect(Rect2(Vector2(), matrix_size * Vector2(cell_size, cell_size)), Color(0, 0, 0))
 	for row in range(main_matrix.size()):
 		for column in range(main_matrix[row].size()):
-			draw_rect(
-				Rect2(
-					column * cell_size,
-					row * cell_size, 
-					cell_size,
-					cell_size
-				), 
-				Color(float(main_matrix[row][column]) / float(mat_max), 0, 0)
-			)
+			if main_matrix[row][column] > 0:
+				draw_rect(
+					Rect2(
+						column * cell_size,
+						row * cell_size, 
+						cell_size,
+						cell_size
+					), 
+					Color(float(main_matrix[row][column]) / float(mat_max), 0, 0)
+				)
 
 func fit_matrix(matrix, track):
 	var box = find_box(track)
@@ -319,7 +241,7 @@ func _on_reset_matrix_pressed():
 	update()
 "
 
-[sub_resource type="GDScript" id=9]
+[sub_resource type="GDScript" id=4]
 
 script/source = "tool
 extends Node2D
@@ -439,119 +361,124 @@ func moving_average(coords, window):
 			
 	return movavg_coords"
 
-[sub_resource type="GDScript" id=10]
+[sub_resource type="GDScript" id=5]
 
 script/source = "extends Node2D
 
-var events = []
-
-func _ready():
-	pass
-	
-func add_event(event_matrix):
-	var matrix_instance = get_parent().get_node(\"matrix\").duplicate()
-	matrix_instance.main_matrix = event_matrix
-	matrix_instance.cell_size = 1
-	matrix_instance.set_name(\"matrix_\"+\"\")
-	
-	matrix_instance.get_children()
-	
-	get_node(\"elements\").add_child(matrix_instance)
-	
-	events.append(matrix_instance)
-	update_positions()
-		
-func get_height():
-	var h = 0
-	for i in range(events.size()):
-		h += events[i].get_height() + i
-		
-	return h
-
-func update_positions():
-	for i in range(events.size()):
-		events[i].position  = Vector2(
-			-48, 
-			-get_height()/2 + events[i].get_height() * i + i
-		)
-	
-	#var out = get_node(\"out\")
-	#out.position.x = 48
-	#out.position.y = (events.size()-1)*20 / 2
-	#out.update()
-	
-	update()	
-	
-func _draw():
-	for event in events:
-		draw_line(
-			event.position + Vector2(event.get_height()/2, event.get_height()/2), 
-			get_node(\"out\").position + Vector2(event.get_height()/2, event.get_height()/2),
-			Color(0, 0, 0)
-		)
-		
-		
-		
-		"
-
-[sub_resource type="GDScript" id=12]
-
-script/source = "extends Node2D
-
-var mouse_on = false
-var out_size = Vector2(18, 18)
-
-var select_color = Color(1, 0.3, 0)
-var select_size = Vector2(2, 2)
-var is_select = false
-var select_pos = Vector2()
+var neuron_class = preload(\"res://input_tracker/neuron.tscn\")
+var neurons = []
+var is_mouse_on = false
+var is_moved = false
+var selected_neuron = null
 
 func _ready():
 	set_physics_process(true)
 	set_process_input(true)
-	update()
+	pass	
 
 func _physics_process(delta):
-	update()
-	var r = Rect2(
-		self.position,
-		out_size
-	)
+	is_mouse_on = false
+	is_moved = false
 	
-	if r.has_point(get_global_mouse_position()):
-		mouse_on = true
-	else:
-		mouse_on = false
-		
-	if is_select:
-		var move_vector = get_global_mouse_position() - select_pos
-		select_pos = get_global_mouse_position()
-		get_parent().position += move_vector
-		update()
-	
+	for n in neurons:
+		if n.get_node(\"out\").mouse_on:
+			is_mouse_on = true
+		if n.get_node(\"out\").is_move:
+			is_moved = true
+
 func _input(event):
 	if event is InputEventMouseButton:
-		if event.pressed:
-			is_select = mouse_on 
-			select_pos = get_global_mouse_position()
-			update()
-		else:
-			is_select = false 
-			update()
-			
-func _draw():
-	if is_select:
-		draw_rect(Rect2(-select_size, out_size + select_size * 2), select_color, true)
-		
-	var c = Color(1, 1, 1)
-	if mouse_on:
-		c = Color(1, 0, 0)
-	draw_rect(Rect2(Vector2(0, 0), out_size), c)
+		if event.pressed:	
+			var find_select = false
+			for neuron in neurons:
+				var out = neuron.get_node(\"out\")
+				
+				if is_mouse_on:
+					out.is_select = false
+				
+				if out.mouse_on && !find_select:
+					out.is_select = true
+					selected_neuron = neuron
+					find_select = true
+					
+				out.update()
 
+func create_neuron():
+	var neuron_instance = neuron_class.instance()
+	neuron_instance.position = Vector2(32, 150)
+	add_child(neuron_instance)
+	neurons.append(neuron_instance)
 	
+	return neuron_instance
+	
+func reset():
+	for neuron in neurons:
+		neuron.queue_free()
+	neurons = []
+	selected_neuron = null
+	
+	"
+
+[sub_resource type="GDScript" id=6]
+
+script/source = "extends Node2D
+
+var data_file = \"1.json\"
+
+func _ready():
+	pass
+	
+func load_neurons():
+	var neurons = get_parent().get_node(\"neurons\")
+	neurons.reset()
+	
+	var data = load_file(data_file)
+	var neurons_struct = parse_json(data)
+	for neuron in neurons_struct:
+		var neuron_instance = neurons.create_neuron()
+		neuron_instance.position.x = neuron.x
+		neuron_instance.position.y = neuron.y
+		for event in neuron.events:
+			neuron_instance.add_event(event)
+
+func save_neurons():
+	var neurons = get_parent().get_node(\"neurons\").neurons
 		
+	var neurons_struct = []
+	for neuron in neurons:
+		var neuron_struct = {
+			\"x\": neuron.position.x,
+			\"y\": neuron.position.y,
+			\"events\": [],
+		}
+		var events_struct = []
+		for event in neuron.events:
+			events_struct.append(event.main_matrix)
+		neuron_struct[\"events\"] = events_struct
+		neurons_struct.append(neuron_struct)
+			
+	var json = to_json(neurons_struct)
+	save_file(data_file, json)
 		
-		"
+func save_file(filename, content):
+    var file = File.new()
+    file.open(\"user://\" + filename, file.WRITE)
+    file.store_string(content)
+    file.close()
+ 
+func load_file(filename):
+    var file = File.new()
+    file.open(\"user://\" + filename, file.READ)
+    var content = file.get_as_text()
+    file.close()
+    return content
+
+func _on_save_neurons_pressed():
+	save_neurons()
+
+func _on_load_neurons_pressed():
+	load_neurons()
+"
 
 [node name="game" type="Node2D"]
 
@@ -560,113 +487,10 @@ __meta__ = {
 "_edit_lock_": true
 }
 
-[node name="enemy" type="Node2D" parent="."]
-
-editor/display_folded = true
-position = Vector2( 481.462, -71.7093 )
-script = SubResource( 1 )
-_sections_unfolded = [ "Transform" ]
-speed = 200
-round_speed = 400
-
-[node name="sprite" type="Sprite" parent="enemy"]
-
-texture = ExtResource( 1 )
-
-[node name="path_root" type="Node2D" parent="."]
-
-editor/display_folded = true
-
-[node name="path_0" type="Path2D" parent="path_root"]
-
-curve = SubResource( 2 )
-
-[node name="PathFollow2D" type="PathFollow2D" parent="path_root/path_0"]
-
-position = Vector2( 57.3607, 38.7337 )
-rotation = 2.22396
-offset = 0.0
-h_offset = 0.0
-v_offset = 0.0
-rotate = true
-cubic_interp = true
-loop = true
-lookahead = 4.0
-
-[node name="spawn" type="Node2D" parent="path_root/path_0"]
-
-position = Vector2( 60.4678, 39.0115 )
-
-[node name="path_1" type="Path2D" parent="path_root"]
-
-position = Vector2( -1.95056, 0.975281 )
-curve = SubResource( 3 )
-
-[node name="PathFollow2D" type="PathFollow2D" parent="path_root/path_1"]
-
-position = Vector2( 513.795, 341.073 )
-rotation = 1.05466
-offset = 0.0
-h_offset = 0.0
-v_offset = 0.0
-rotate = true
-cubic_interp = true
-loop = true
-lookahead = 4.0
-
-[node name="spawn" type="Node2D" parent="path_root/path_1"]
-
-position = Vector2( 994.792, 29.2586 )
-
-[node name="path_2" type="Path2D" parent="path_root"]
-
-curve = SubResource( 4 )
-
-[node name="PathFollow2D" type="PathFollow2D" parent="path_root/path_2"]
-
-position = Vector2( 1014.12, 592.697 )
-rotation = -1.03224
-offset = 0.0
-h_offset = 0.0
-v_offset = 0.0
-rotate = true
-cubic_interp = true
-loop = true
-lookahead = 4.0
-
-[node name="spawn" type="Node2D" parent="path_root/path_2"]
-
-position = Vector2( 1004.55, 587.123 )
-
-[node name="path_3" type="Path2D" parent="path_root"]
-
-position = Vector2( 0.975281, 0.975281 )
-curve = SubResource( 5 )
-
-[node name="PathFollow2D" type="PathFollow2D" parent="path_root/path_3"]
-
-position = Vector2( 508.918, 344.974 )
-rotation = -2.05119
-offset = 0.0
-h_offset = 0.0
-v_offset = 0.0
-rotate = true
-cubic_interp = true
-loop = true
-lookahead = 4.0
-
-[node name="spawn" type="Node2D" parent="path_root/path_3"]
-
-position = Vector2( 33.1598, 572.493 )
-
-[node name="spawner" type="Node2D" parent="."]
-
-script = SubResource( 6 )
-
 [node name="input_tracker" type="Node2D" parent="."]
 
 position = Vector2( -0.999023, -0.998947 )
-script = SubResource( 11 )
+script = SubResource( 1 )
 
 [node name="draw_area" type="Container" parent="input_tracker"]
 
@@ -674,39 +498,33 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_right = 1024.0
-margin_bottom = 600.0
+margin_left = -1.0
+margin_top = 1.0
+margin_right = 1023.0
+margin_bottom = 601.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
 mouse_filter = 0
 size_flags_horizontal = 1
 size_flags_vertical = 1
-script = SubResource( 7 )
+script = SubResource( 2 )
 _sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
 
 [node name="matrix" type="Node2D" parent="input_tracker"]
 
 position = Vector2( 32, 8 )
-script = SubResource( 8 )
+script = SubResource( 3 )
 _sections_unfolded = [ "Transform", "Z" ]
 
 [node name="normilized_track" type="Node2D" parent="input_tracker"]
 
 position = Vector2( 33, 9 )
-script = SubResource( 9 )
+script = SubResource( 4 )
 _sections_unfolded = [ "Transform", "Visibility" ]
 
-[node name="neuron" type="Node2D" parent="input_tracker"]
+[node name="neurons" type="Node2D" parent="input_tracker"]
 
-position = Vector2( 64, 120 )
-script = SubResource( 10 )
-_sections_unfolded = [ "Transform", "Z" ]
-
-[node name="out" type="Node2D" parent="input_tracker/neuron"]
-
-script = SubResource( 12 )
-
-[node name="elements" type="Node2D" parent="input_tracker/neuron"]
+script = SubResource( 5 )
 
 [node name="gui" type="Control" parent="input_tracker"]
 
@@ -726,9 +544,9 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 12.0
-margin_right = 206.0
+margin_right = 205.0
 margin_bottom = 32.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -749,9 +567,9 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 36.0
-margin_right = 215.0
+margin_right = 214.0
 margin_bottom = 56.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -772,9 +590,9 @@ anchor_left = 0.0
 anchor_top = 0.0
 anchor_right = 0.0
 anchor_bottom = 0.0
-margin_left = 129.0
+margin_left = 128.0
 margin_top = 60.0
-margin_right = 215.0
+margin_right = 219.0
 margin_bottom = 80.0
 rect_pivot_offset = Vector2( 0, 0 )
 rect_clip_content = false
@@ -785,34 +603,82 @@ toggle_mode = false
 enabled_focus_mode = 2
 shortcut = null
 group = null
-text = "Reset"
+text = "Reset action"
 flat = false
 _sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
 
-[node name="camera" type="Camera2D" parent="."]
+[node name="reset_neuron" type="Button" parent="input_tracker/gui"]
 
-offset = Vector2( 512, 300 )
-anchor_mode = 1
-rotating = false
-current = true
-zoom = Vector2( 1, 1 )
-limit_left = -10000000
-limit_top = -10000000
-limit_right = 10000000
-limit_bottom = 10000000
-limit_smoothed = false
-drag_margin_h_enabled = true
-drag_margin_v_enabled = true
-smoothing_enabled = false
-smoothing_speed = 5.0
-drag_margin_left = 0.2
-drag_margin_top = 0.2
-drag_margin_right = 0.2
-drag_margin_bottom = 0.2
-editor_draw_screen = true
-editor_draw_limits = false
-editor_draw_drag_margin = false
-_sections_unfolded = [ "Drag Margin", "Limit", "Smoothing", "Transform" ]
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 128.0
+margin_top = 84.0
+margin_right = 219.0
+margin_bottom = 104.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+text = "Reset neuron"
+flat = false
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="save_neurons" type="Button" parent="input_tracker/gui"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 237.0
+margin_top = 12.0
+margin_right = 334.0
+margin_bottom = 32.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+text = "Save neurons"
+flat = false
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="load_neurons" type="Button" parent="input_tracker/gui"]
+
+anchor_left = 0.0
+anchor_top = 0.0
+anchor_right = 0.0
+anchor_bottom = 0.0
+margin_left = 237.0
+margin_top = 36.0
+margin_right = 335.0
+margin_bottom = 56.0
+rect_pivot_offset = Vector2( 0, 0 )
+rect_clip_content = false
+mouse_filter = 0
+size_flags_horizontal = 1
+size_flags_vertical = 1
+toggle_mode = false
+enabled_focus_mode = 2
+shortcut = null
+group = null
+text = "Load neurons"
+flat = false
+_sections_unfolded = [ "Anchor", "Grow Direction", "Margin", "Rect" ]
+
+[node name="loader" type="Node2D" parent="input_tracker"]
+
+script = SubResource( 6 )
 
 [connection signal="mouse_entered" from="input_tracker/draw_area" to="input_tracker/draw_area" method="_on_draw_area_mouse_entered"]
 
@@ -823,5 +689,11 @@ _sections_unfolded = [ "Drag Margin", "Limit", "Smoothing", "Transform" ]
 [connection signal="pressed" from="input_tracker/gui/add_neuron" to="input_tracker" method="_on_add_neuron_pressed"]
 
 [connection signal="pressed" from="input_tracker/gui/reset_matrix" to="input_tracker" method="_on_reset_matrix_pressed"]
+
+[connection signal="pressed" from="input_tracker/gui/reset_neuron" to="input_tracker" method="_on_reset_neuron_pressed"]
+
+[connection signal="pressed" from="input_tracker/gui/save_neurons" to="input_tracker/loader" method="_on_save_neurons_pressed"]
+
+[connection signal="pressed" from="input_tracker/gui/load_neurons" to="input_tracker/loader" method="_on_load_neurons_pressed"]
 
 
